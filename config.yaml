@@ -1,0 +1,6 @@
+meshes_path: "../data"
+output_path: "output"
+target_num_grasps: 500
+num_workers: 8
+single_object: ""
+gripper: "panda_gripper"
