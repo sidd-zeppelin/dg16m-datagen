@@ -1,6 +1,5 @@
 import sys
 import os
-import shutil
 import yaml
 import argparse
 
@@ -36,10 +35,7 @@ def main():
     meshes_dir_raw = args.meshes_dir if args.meshes_dir else config.get("meshes_path", "meshes")
     default_meshes_path = os.path.abspath(os.path.join(script_dir, meshes_dir_raw))
 
-    output_meshes_path = os.path.join(output_path, "meshes")
     output_grasps_path = os.path.join(output_path, "grasps")
-    
-    os.makedirs(output_meshes_path, exist_ok=True)
     os.makedirs(output_grasps_path, exist_ok=True)
 
     objects_to_process = []
@@ -73,11 +69,6 @@ def main():
     
     for obj in objects_to_process:
         input_mesh_file = os.path.join(meshes_path, obj)
-        output_mesh_file = os.path.join(output_meshes_path, obj)
-        
-        shutil.copy2(input_mesh_file, output_mesh_file)
-        print(f"Copied mesh to: {output_mesh_file}")
-        
         print(f"Generating grasps for: {obj}")
         num_passing, num_failed = generate_grasps_for_mesh(
             OBJ_FILENAME=input_mesh_file,
