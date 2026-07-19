@@ -22,3 +22,6 @@ scratch/
 
 # System files
 .DS_Store
+
+# nix
+.direnv/
