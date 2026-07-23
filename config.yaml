@@ -1,6 +1,25 @@
-meshes_path: "../data"
+meshes_path: "output/meshes"
 output_path: "output"
-target_num_grasps: 500
+
+num_sampled_grasps: 500
+num_positive: 2000
+num_negative: 2000
+
+friction_coeff: 0.4
+object_mass: 6
+
 num_workers: 8
-single_object: ""
-gripper: "panda_gripper"
+debug: false
+
+sampling_friction_coef: 0.4
+sampling_friction_coef_inc: 0.1
+num_cone_faces: 8
+grasp_samples_per_surface_point: 2
+min_contact_dist: 0.0
+coll_check_num_grasp_rots: 20
+check_collisions: 1
+max_num_surface_points: 6000
+grasp_dist_thresh: 0.0025
+grasp_dist_alpha: 0.005
+approach_dist: 0.05
+delta_approach: 0.005

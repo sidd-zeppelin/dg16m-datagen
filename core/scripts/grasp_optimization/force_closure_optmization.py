@@ -1,7 +1,16 @@
 import numpy as np
 import cvxpy as cp
+import warnings
 
 def normalize(x):
+    """Normalise a 3-D vector to unit length.
+
+    Args:
+        x (np.ndarray): Vector of shape ``(3,)``.
+
+    Returns:
+        np.ndarray: Unit vector in the same direction.
+    """
     mag = np.linalg.norm(x)
     if mag == 0:
         mag = mag + 1e-10
@@ -9,6 +18,21 @@ def normalize(x):
 
 
 def hat(v):
+    """Skew-symmetric (hat) matrix of a 3-D vector.
+
+    The hat operator maps a vector :math:`v \\in \\mathbb{R}^3` to the
+    skew-symmetric matrix :math:`[v]_\\times` such that
+    :math:`[v]_\\times w = v \\times w`.
+
+    Args:
+        v (np.ndarray): Vector of shape ``(3,)`` or ``(3, 1)``.
+
+    Returns:
+        np.ndarray: Skew-symmetric matrix of shape ``(3, 3)``.
+
+    Raises:
+        ValueError: If *v* does not have shape ``(3,)`` or ``(3, 1)``.
+    """
     if v.shape == (3, 1) or v.shape == (3,):
         return np.array([
             [0, -v[2], v[1]],
@@ -89,6 +113,44 @@ def compute_grasp_map(contact_pos, contact_normal, soft_contact=False):
     return G, contact_frames
 
 def fc_optimization(contact_positions, contact_normals, weight, friction_coeff=0.3, soft_contact=False, orientation=0):
+    """Solve the force-closure (FC) optimisation for a single 4-contact grasp.
+
+    Given four contact points and their inward-pointing surface normals,
+    this function sets up a convex optimisation (cvxpy) that minimises
+    the residual wrench :math:`\\| G f + w_\\text{ext} \\|` subject to:
+
+    * Friction-cone constraints (second-order cone) for each contact.
+    * Force magnitude limits (``0.1`` – ``70`` N per contact).
+
+    The grasp is considered *passing* if the optimal residual is close
+    to zero (threshold applied by the caller).
+
+    Args:
+        contact_positions (np.ndarray): Four contact points, shape ``(4, 3)``.
+        contact_normals (np.ndarray): Surface normals at each contact
+            (pointing inward into the object), shape ``(4, 3)``.
+        weight (float): Magnitude of the gravity wrench (typically
+            ``10 * object_mass`` N).
+        friction_coeff (float): Coulomb friction coefficient.
+        soft_contact (bool): If ``True``, use a soft-contact model with
+            a 4-D force basis (includes torsional moment). Defaults to
+            ``False`` (point-contact-with-friction, 3-D basis).
+        orientation (int): Gravity direction selector (see
+            :func:`check_contact_points_parallel.run_fc_optimization`).
+
+    Returns:
+        tuple:
+            - **f1** (:obj:`np.ndarray`): Contact force at point 1
+              (world frame), shape ``(3,)``.
+            - **f2** (:obj:`np.ndarray`): Contact force at point 2.
+            - **f3** (:obj:`np.ndarray`): Contact force at point 3.
+            - **f4** (:obj:`np.ndarray`): Contact force at point 4.
+            - **loss** (:obj:`float`): Optimal residual wrench norm.
+              ``1000`` if the grasp map is rank-deficient or the solver
+              fails.
+            - **contact_frames** (:obj:`list` of :obj:`np.ndarray`):
+              4×4 contact-frame transforms for each contact.
+    """
     
     if orientation == 0:
         w_ext = np.array([0.0, 0.0, -weight, 0.0, 0.0, 0.0])  # External wrench (gravity)
@@ -115,8 +177,6 @@ def fc_optimization(contact_positions, contact_normals, weight, friction_coeff=0
     f_low = 0.1
     f_high = 70
 
-    print('Weights and friction coefficient:', weight, friction_coeff)
-        
     constraints = [
         cp.norm(f1) <= f_high,
         cp.norm(f2) <= f_high,
@@ -137,11 +197,12 @@ def fc_optimization(contact_positions, contact_normals, weight, friction_coeff=0
                          constraints)
     
     try:
-        problem.solve(verbose=False)
-    except Exception as e:
-        # Optimization failed to solve. Return zeros and high loss value (1000) to remove these outliers. 
-        # Observed about < 10 grasps fail to be solved. Safe to remove them. 
-        print(e)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            problem.solve(verbose=False)
+    except Exception:
+        # Optimization failed to solve. Return zeros and high loss value (1000) to remove these outliers.
+        # Observed about < 10 grasps fail to be solved. Safe to remove them.
         return np.zeros(3), np.zeros(3), np.zeros(3), np.zeros(3), 1000, [CF1, CF2, CF3, CF4]
     
     return CF1[0][:3,:3] @ f1.value, CF2[0][:3,:3] @ f2.value, CF3[0][:3,:3] @ f3.value, CF4[0][:3,:3] @ f4.value, problem.value, [CF1, CF2, CF3, CF4]

@@ -1,53 +1,26 @@
 # DG16M Data Generation
 
-This repository contains the dataset generation pipeline for the DG16M dataset. It generates dual arm force optimized grasps.
+Generate dual-arm force-optimised grasps. Antipodal grasp sampling via
+Dex-Net, force-closure evaluation via convex optimisation.
 
-## Setup
-
-We use uv to manage dependencies. Run this command inside the directory.
+## Quick start
 
 ```bash
 uv sync
+uv run main.py --mesh path/to/mesh.obj
+uv run main.py --meshes-dir path/to/meshes --num-workers 16
 ```
 
-## Generating Data
-
-The main script samples grasps. It also performs force closure optimization. It outputs h5 files with successful grasps, contact points, and wrench statistics.
-
-### Run on a single object
+## Documentation
 
 ```bash
-uv run python main.py --mesh ../DG16M-dataset/meshes/1.obj --output-dir output/
+uv run mkdocs serve
 ```
 
-### Run on a folder of objects
+Then open <http://127.0.0.1:8000> in your browser.
 
-```bash
-uv run python main.py --meshes-dir ../DG16M-dataset/meshes --num-workers 16 --output-dir output/
-```
+## Credits
 
-### Run with config defaults
-
-```bash
-uv run python main.py
-```
-
-### Arguments
-
-* mesh: Path to a single obj file.
-* meshes dir: Path to a folder of obj meshes.
-* output dir: Location to save output files.
-* num workers: Number of CPU processes to use.
-* target grasps: Number of initial grasps to sample.
-
-## Visualizing Data
-
-You can use the Jupyter notebook to visualize the generated grasps.
-
-Open the notebook.
-
-```bash
-uv run jupyter notebook visualize_grasps.ipynb
-```
-
-The notebook has blocks to visualize one passing grasp, one failing grasp, or all grasps.
+* **[Dex-Net](https://github.com/BerkeleyAutomation/dex-net)** (Mahler et al., UC Berkeley Autolab) — `core/scripts/dexnet/`: grasping framework, antipodal sampling, gripper models.
+* **[meshpy](https://github.com/BerkeleyAutomation/meshpy)** (UC Berkeley Autolab) — vendored in `core/meshpy/`: mesh I/O and representation.
+* **[ACRONYM](https://github.com/NVlabs/acronym)** (NVIDIA) — `core/scripts/DA2_tools/` scene utilities, modified by Guangyao Zhai.

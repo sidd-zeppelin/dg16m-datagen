@@ -24,6 +24,11 @@ import concurrent.futures
 
 APPROACH_OFFSET = 1e-3 # offset for suction contact approach
 
+# Set to True to re-enable the verbose sampling diagnostics (thread timing,
+# surface counts, per-iteration remainder, etc.). Read from the DG16M_DEBUG
+# env var so spawned worker processes also pick it up.
+_DEBUG = os.environ.get("DG16M_DEBUG", "").lower() in ("1", "true", "yes")
+
 USE_OPENRAVE = True
 try:
     import openravepy as rave
@@ -259,7 +264,8 @@ class GraspSampler:
         num_grasps_remaining = target_num_grasps
         self.friction_coef = self.min_friction_coef
 
-        print(f"Target number of grasps: {target_num_grasps}")
+        if _DEBUG:
+            print(f"Target number of grasps: {target_num_grasps}")
         grasps = []
         final_grasps = np.array([]).reshape(-1,2)
         d_list = []
@@ -277,12 +283,14 @@ class GraspSampler:
             scale = random.uniform(min_scale, max_scale)
         
         scale = 1
-        print('Scale: ', scale)
+        if _DEBUG:
+            print('Scale: ', scale)
         graspable.mesh.trimesh.apply_transform(RigidTransform(np.eye(3), -graspable.mesh.trimesh.centroid).matrix)
         graspable.mesh.trimesh.apply_scale(scale)
 
         while num_grasps_remaining > 0 and k <= max_iter:
-            print("{}/{} starts!!!!!!!".format(k,max_iter))
+            if _DEBUG:
+                print("{}/{} starts!!!!!!!".format(k,max_iter))
             # SAMPLING: generate more than we need
             num_grasps_generate = int(grasp_gen_mult * num_grasps_remaining)
             new_grasps = self.sample_hierachical_grasps(graspable, num_grasps_generate, gripper = self.gripper,
@@ -308,7 +316,8 @@ class GraspSampler:
 
             # add to the current grasp set
             grasps += coll_free_grasps
-            print('Obtain %d single grasps'%(len(coll_free_grasps)))
+            if _DEBUG:
+                print('Obtain %d single grasps'%(len(coll_free_grasps)))
             
             #! nC2 combinations of all grasps to create dual grasps
             dual_grasp = np.array([c for c in combinations(coll_free_grasps, 2)])
@@ -326,7 +335,8 @@ class GraspSampler:
             #! remove grasps that are too close 
             dist = ParallelJawPtGrasp3D.array_distance(grasp1_center, grasp2_center, grasp1_axis, grasp2_axis, alpha=self.grasp_dist_alpha)
             dist_threshold = 1e-1 
-            print("skip  ", np.where(dist < dist_threshold)[0], "len: ", np.where(dist < dist_threshold)[0].shape)
+            if _DEBUG:
+                print("skip  ", np.where(dist < dist_threshold)[0], "len: ", np.where(dist < dist_threshold)[0].shape)
             dual_grasp = dual_grasp[np.where(dist > dist_threshold)[0]]
             
             
@@ -339,8 +349,9 @@ class GraspSampler:
             final_grasps = np.concatenate((final_grasps, dual_grasp), axis=0)
             
             num_grasps_remaining -= len(pruned_grasps)
-            print('Num grasps remaining: ', num_grasps_remaining)
-            print('=' * 50)
+            if _DEBUG:
+                print('Num grasps remaining: ', num_grasps_remaining)
+                print('=' * 50)
             
             k += 1
             
@@ -355,12 +366,12 @@ class GraspSampler:
         dist = ParallelJawPtGrasp3D.array_distance(grasp1_center, grasp2_center, grasp1_axis, grasp2_axis, alpha=self.grasp_dist_alpha)
         dist_threshold = 1e-1
         indices_to_take = np.where(dist > dist_threshold)[0]
-        print(f"Skipping {len(dual_grasp) - len(indices_to_take)} dual grasps that are too close.")
+        num_removed = len(dual_grasp) - len(indices_to_take)
         dual_grasp = dual_grasp[indices_to_take]
-    
-        print(f'Found {len(grasps)} single-arm grasps.')
-        print(f'Found {len(dual_grasp)} dual-arm grasps.')
-        
+
+        print("  {} single grasps, {} pairs removed (too close), {} pairs".format(
+            len(grasps), num_removed, len(dual_grasp)))
+
         return scale, dual_grasp
 
 class UniformGraspSampler(GraspSampler):
@@ -703,15 +714,19 @@ class MeshAntipodalGraspSampler(GraspSampler):
         iter = 0
         grasps = []
         while remain_grasp > 0 and iter < 3:
-            print("Thread %d remain %d grasps" % (n, remain_grasp))
+            if _DEBUG:
+                print("Thread %d remain %d grasps" % (n, remain_grasp))
             mesh_start = time.time()
             try:
                 surface_points, face_index = ts.sample_surface_even(mesh, self.max_num_surface_points)
-                print('Num surface: %d' %(len(surface_points)))
+                if _DEBUG:
+                    print('Num surface: %d' %(len(surface_points)))
             except IndexError as ind:
-                print(ind)
+                if _DEBUG:
+                    print(ind)
                 return []
-            print('Sample surface took %.3f sec' %(time.time() - mesh_start), "Thread %d" % n)
+            if _DEBUG:
+                print('Sample surface took %.3f sec' %(time.time() - mesh_start), "Thread %d" % n)
 
 
             # form proximity query structure
@@ -820,16 +835,18 @@ class MeshAntipodalGraspSampler(GraspSampler):
                 k += 1
             # print('Grasps %d/%d took %.3f sec' %(k, num_grasps, time.time() - grasp_start), "Thread %d" % n)
             remain_grasp = copy.deepcopy(num_grasps) - len(grasps)
-            print('After iter %d For %d grasps, remain %d' %(iter, num_grasps, remain_grasp), "Thread %d" % n)
+            if _DEBUG:
+                print('After iter %d For %d grasps, remain %d' %(iter, num_grasps, remain_grasp), "Thread %d" % n)
             iter += 1
         return grasps
 
 
     def sample_hierachical_grasps(self, graspable, num_grasps, gripper=None,vis=False, num_workers=8):
         def print_error(value):
-            print("!!!!!!!!!!!!!!!!!!!!!!!!!!error!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!: ")
-            print(value)
-            print("!!!!!!!!!!!!!!!!!!!!!!!!!!error!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!: ")
+            if _DEBUG:
+                print("!!!!!!!!!!!!!!!!!!!!!!!!!!error!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!: ")
+                print(value)
+                print("!!!!!!!!!!!!!!!!!!!!!!!!!!error!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!: ")
 
         mesh = graspable.mesh.trimesh
 
@@ -868,7 +885,8 @@ class MeshAntipodalGraspSampler(GraspSampler):
 
         t0 = time.time()
         subgrasp = math.ceil(float(num_grasps / len(submesh_list)))
-        print(f"Size of submesh list: {len(submesh_list)}")
+        if _DEBUG:
+            print(f"Size of submesh list: {len(submesh_list)}")
         # for i in range(len(submesh_list)):
         #     # grasp_list.append(self.multi_grasp(i, submesh_list[i], graspable, subgrasp, gripper))
         #     submesh_grasps = self.multi_grasp(i, submesh_list[i], graspable, subgrasp, gripper)
@@ -898,7 +916,8 @@ class MeshAntipodalGraspSampler(GraspSampler):
         for grasp in grasp_list:
             grasp_candidate = np.concatenate((grasp_candidate, np.asarray(grasp)), axis=0)
 
-        print("All cost: %.3f sec" % (time.time() - t0))
+        if _DEBUG:
+            print("All cost: %.3f sec" % (time.time() - t0))
 
         return grasp_candidate
     

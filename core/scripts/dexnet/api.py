@@ -15,7 +15,7 @@ import time
 
 # create logger
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.ERROR)
 
 from autolab_core import YamlConfig, Point, PointCloud, RigidTransform
 # from meshpy import convex_decomposition, Mesh3D

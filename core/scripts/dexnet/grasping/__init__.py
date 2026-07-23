@@ -19,7 +19,6 @@ PURPOSE. THE SOFTWARE AND ACCOMPANYING DOCUMENTATION, IF ANY, PROVIDED
 HEREUNDER IS PROVIDED "AS IS". REGENTS HAS NO OBLIGATION TO PROVIDE
 MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 """
-# from dexnet.grasping.force_closure_detection import FCLoss
 from dexnet.grasping.contacts import Contact3D, SurfaceWindow
 from dexnet.grasping.graspable_object import GraspableObject, GraspableObject3D
 from dexnet.grasping.grasp import Grasp, PointGrasp, ParallelJawPtGrasp3D

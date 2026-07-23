@@ -46,6 +46,8 @@
                 pkgs.libxkbcommon
                 pkgs.qt6.qtbase
                 pkgs.qt6.qtwayland
+                pkgs.xorg.libxcb
+                pkgs.glib
               ]
             }"
 

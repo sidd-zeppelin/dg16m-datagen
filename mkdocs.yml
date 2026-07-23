@@ -1,0 +1,32 @@
+site_name: DG16M Data Generation
+repo_url: https://github.com/RoboticsIIITH/dg16m-drdo
+docs_dir: docs
+nav:
+  - Overview: index.md
+  - Installation: installation.md
+  - Configuration: configuration.md
+  - CLI: cli.md
+  - Pipeline: pipeline.md
+  - Output format: output.md
+  - API reference: api.md
+  - Development: development.md
+theme:
+  name: material
+  palette:
+    primary: indigo
+  features:
+    - navigation.sections
+    - navigation.top
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - toc:
+      permalink: true
+
+extra_javascript:
+  - https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js
